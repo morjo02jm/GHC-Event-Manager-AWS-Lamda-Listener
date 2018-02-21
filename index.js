@@ -6,6 +6,7 @@ function signRequestBody(key, body) {
 }
 
 exports.handler = (event, context, callback) => {
+  console.log(JSON.stringify(event));
   var errMsg; // eslint-disable-line
   const token = process.env.GITHUB_WEBHOOK_SECRET;
   const headers = event.headers;
@@ -134,8 +135,8 @@ function handleOrganizationEvent(type, body) {
 };
 
 function processEvent(type, body, subject) {
-	//return sendEmail(type, body, subject);
-	return updateDB(type, body, subject);
+	return sendEmail(type, body, subject); 
+//	return updateDB(type, body, subject); 
 };
 
 var Mailgun = require('mailgun').Mailgun;
@@ -238,6 +239,7 @@ function updateDB(type, body, subject) {
 }; //updateDB
 
 function sendEmail(type, body, subject) {
+	console.log ('mailgun trigged');
   return new Promise((resolve, reject) => {
 	  var jsonobj = JSON.parse(body);
 	  console.log('Type: '+type+'  Sender: '+jsonobj.sender.login+'\n'+body);
@@ -245,7 +247,7 @@ function sendEmail(type, body, subject) {
     var mg = new Mailgun('key-621c4e8b8407c526de22753e31d8c75b');
 	  const sender = 'ToolsSolutionsCommunications@ca.com';
     const testRecipient = process.env['GHC_EMAIL_RECIPIENT'];
-    const recipients = testRecipient ? [testRecipient] : ['faudo01@ca.com'];
+    const recipients = testRecipient ? [testRecipient] : ['gaoyu01@ca.com'];
 	
     mg.sendText(sender, recipients, subject, body, null, function(err) {
       if (err) {
