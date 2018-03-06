@@ -1,6 +1,5 @@
 const crypto = require('crypto');
 
-
 function signRequestBody(key, body) {
   return `sha1=${crypto.createHmac('sha1', key).update(body, 'utf-8').digest('hex')}`;
 }
@@ -135,8 +134,14 @@ function handleOrganizationEvent(type, body) {
 };
 
 function processEvent(type, body, subject) {
-	return sendEmail(type, body, subject); 
-//	return updateDB(type, body, subject); 
+	switch (process.env['GHC_EMAIL_NOTIFY'])
+	{
+	case "TRUE":
+	default:
+		return sendEmail(type, body, subject); 
+	case "FALSE":
+		return updateDB(type, body, subject); 
+	}
 };
 
 var Mailgun = require('mailgun').Mailgun;
@@ -245,9 +250,9 @@ function sendEmail(type, body, subject) {
 	  console.log('Type: '+type+'  Sender: '+jsonobj.sender.login+'\n'+body);
 	
     var mg = new Mailgun('key-621c4e8b8407c526de22753e31d8c75b');
-	  const sender = 'ToolsSolutionsCommunications@ca.com';
+	const sender = 'ToolsSolutionsCommunications@ca.com';
     const testRecipient = process.env['GHC_EMAIL_RECIPIENT'];
-    const recipients = testRecipient ? [testRecipient] : ['gaoyu01@ca.com'];
+    const recipients = testRecipient ? [testRecipient] : ['Toolsadmin@ca.com'];
 	
     mg.sendText(sender, recipients, subject, body, null, function(err) {
       if (err) {
