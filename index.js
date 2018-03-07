@@ -148,8 +148,8 @@ var Mailgun = require('mailgun').Mailgun;
 var cons = require('console');
 var Sequelize = require('sequelize');
 require('sequelize-isunique-validator')(Sequelize);
-var AWS = require('aws-sdk'); 
-var kms = new AWS.KMS(); 
+const AWS = require('aws-sdk'); 
+const kms = new AWS.KMS(); 
 
 const config = {
     db_username: "gm_tools_user",
@@ -159,34 +159,6 @@ const config = {
 	db_dialect: "mssql"
 	};
 	
-//const psswd = process.env.IMAG_DB_PASSWORD;
-var buf = Buffer.from(process.env.IMAG_DB_PASSWORD, 'base64'); 
-var db = null;
-
-function connectDB(type, body, subject) {
-  return new Promise((resolve, reject) => {
-		if (db == null) {
-			var params = {
-				CiphertextBlob: buf
-			};
-			kms.decrypt(params, function(err, data) {
-				if (err) reject('Password Decryption Failed'); // an error occurred
-				else {
-					var psswd = data['Plaintext'];
-					console.log('Password:'+psswd);
-					db = new Sequelize(config.db_name, config.db_username, psswd,
-											  {host: config.db_host, dialect: config.db_dialect,
-											   pool: {max: 5, min: 0, acquire: 30000, idle: 10000 },
-														  operatorsAliases: false });
-					resolve(subject);
-				}; // successful response		
-			});
-		}  
-		else {
-			resolve(subject);
-		}
-  }) 
-};
 
 function updateDB(type, body, subject) {
   return new Promise((resolve, reject) => {
@@ -197,14 +169,7 @@ function updateDB(type, body, subject) {
 	var expr = '';
 	var location = '';
 	var preamble ="INSERT INTO GITHUB_EVENTS ( Application, ApplicationLocation, ResourceOwner1, ResourceOwner2, ResourceName, EventTime, EventAttributes, User_ID ) VALUES (";
-
-    // connect DB
-	var buf = Buffer.from(process.env.IMAG_DB_PASSWORD, 'base64'); 
-	var db = null;
-	var params = {
-		CiphertextBlob: buf
-	};
-	
+		
 	switch (type) {
 	case 'public':
 		location = jsonobj.repository.owner.html_url;
@@ -258,31 +223,27 @@ function updateDB(type, body, subject) {
 	}
 
 	if (expr && expr.length > 0) {
-		console.log('Type: '+type+'  Sender: '+jsonobj.sender.login+'\n'+body);
+		//console.log('Type: '+type+'  Sender: '+jsonobj.sender.login+'\n'+body);
 		//console.log('Query: '+expr);
-		kms.decrypt(params, function(err, data) {
-			if (err) reject('Password Decryption Failed'); // an error occurred
-			else {
-				var psswd = data['Plaintext'];
-				console.log('Password:'+psswd);
-				db = new Sequelize(config.db_name, config.db_username, psswd,
-										  {host: config.db_host, dialect: config.db_dialect,
-										   pool: {max: 5, min: 0, acquire: 30000, idle: 10000 },
-													  operatorsAliases: false });
-			}; // successful response		
-		});
-		
-		db.query(expr).spread(function(results, metadata)
-		{
-			if (metadata > 0) {
-				db.close();
-				resolve(subject);
-			}
-			else {
-				db.close();
-				return reject('Insert Failed');
-			}
-		});
+		kms.decrypt({CiphertextBlob: Buffer(process.env.IMAG_DB_PASSWORD, 'base64')}).promise().then(data => {
+			var db = new Sequelize(config.db_name, config.db_username, data.Plaintext.toString('ascii'),
+								  {host: config.db_host, dialect: config.db_dialect,
+								   pool: {max: 5, min: 0, acquire: 30000, idle: 10000 },
+											  operatorsAliases: false });
+
+			db.query(expr).spread(function(results, metadata)
+			{
+				if (metadata > 0) {
+					db.close();
+					resolve(subject);
+				}
+				else {
+					db.close();
+					return reject('Insert Failed');
+				}
+			});
+		})
+		.catch(err => reject('Failed to Decrypt Password');
 	} else {
 		reject('Payload Not Processed');
 	}
