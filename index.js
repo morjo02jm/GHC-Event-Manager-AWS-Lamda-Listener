@@ -140,7 +140,7 @@ function processEvent(type, body, subject) {
 	default:
 		return sendEmail(type, body, subject); 
 	case "FALSE":
-		return connectDB(type, body, subject).then (()=>{return updateDB(type,body,subject)}); 
+		return updateDB(type, body, subject); 
 	}
 };
 
@@ -197,7 +197,14 @@ function updateDB(type, body, subject) {
 	var expr = '';
 	var location = '';
 	var preamble ="INSERT INTO GITHUB_EVENTS ( Application, ApplicationLocation, ResourceOwner1, ResourceOwner2, ResourceName, EventTime, EventAttributes, User_ID ) VALUES (";
-		
+
+    // connect DB
+	var buf = Buffer.from(process.env.IMAG_DB_PASSWORD, 'base64'); 
+	var db = null;
+	var params = {
+		CiphertextBlob: buf
+	};
+	
 	switch (type) {
 	case 'public':
 		location = jsonobj.repository.owner.html_url;
@@ -253,12 +260,26 @@ function updateDB(type, body, subject) {
 	if (expr && expr.length > 0) {
 		console.log('Type: '+type+'  Sender: '+jsonobj.sender.login+'\n'+body);
 		//console.log('Query: '+expr);
+		kms.decrypt(params, function(err, data) {
+			if (err) reject('Password Decryption Failed'); // an error occurred
+			else {
+				var psswd = data['Plaintext'];
+				console.log('Password:'+psswd);
+				db = new Sequelize(config.db_name, config.db_username, psswd,
+										  {host: config.db_host, dialect: config.db_dialect,
+										   pool: {max: 5, min: 0, acquire: 30000, idle: 10000 },
+													  operatorsAliases: false });
+			}; // successful response		
+		});
+		
 		db.query(expr).spread(function(results, metadata)
 		{
 			if (metadata > 0) {
+				db.close();
 				resolve(subject);
 			}
 			else {
+				db.close();
 				return reject('Insert Failed');
 			}
 		});
