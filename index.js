@@ -243,7 +243,7 @@ function updateDB(type, body, subject) {
 				}
 			});
 		})
-		.catch(err => reject('Failed to Decrypt Password');
+		.catch(err => reject('Failed to Decrypt Password'));
 	} else {
 		reject('Payload Not Processed');
 	}
