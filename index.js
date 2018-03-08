@@ -148,8 +148,7 @@ var Mailgun = require('mailgun').Mailgun;
 var cons = require('console');
 var Sequelize = require('sequelize');
 require('sequelize-isunique-validator')(Sequelize);
-const AWS = require('aws-sdk'); 
-const kms = new AWS.KMS(); 
+const aws = require('aws-sdk'); 
 
 const config = {
     db_username: "gm_tools_user",
@@ -158,7 +157,22 @@ const config = {
 	db_host: "AWS-UQAPA6ZZ",
 	db_dialect: "mssql"
 	};
-	
+
+function decrypt(buffer) {
+    const kms = new aws.KMS();
+    return new Promise((resolve, reject) => {
+        const params = {
+            CiphertextBlob: buffer// The data to encrypt.
+        };
+        kms.decrypt(params, (err, data) => {
+            if (err) {
+                reject('Unable to decrypt IMAG DB Password');
+            } else {
+                resolve(data.Plaintext);
+            }
+        });
+    });
+}	
 
 function updateDB(type, body, subject) {
   return new Promise((resolve, reject) => {
@@ -225,25 +239,28 @@ function updateDB(type, body, subject) {
 	if (expr && expr.length > 0) {
 		//console.log('Type: '+type+'  Sender: '+jsonobj.sender.login+'\n'+body);
 		//console.log('Query: '+expr);
-		kms.decrypt({CiphertextBlob: Buffer(process.env.IMAG_DB_PASSWORD, 'base64')}).promise().then(data => {
-			var db = new Sequelize(config.db_name, config.db_username, data.Plaintext.toString('ascii'),
-								  {host: config.db_host, dialect: config.db_dialect,
-								   pool: {max: 5, min: 0, acquire: 30000, idle: 10000 },
-											  operatorsAliases: false });
+		var psswd = process.env.IMAG_DB_PASSWORD; 
+		decrypt(new Buffer(process.env.IMAG_DB_PASSWORD_KMS,'base64')).then(plaintext => 
+		{ 
+			console.log(plaintext.toString('ascii')); 
+		});
+		
+		var db = new Sequelize(config.db_name, config.db_username, psswd,
+							  {host: config.db_host, dialect: config.db_dialect,
+							   pool: {max: 5, min: 0, acquire: 30000, idle: 10000 },
+										  operatorsAliases: false });
 
-			db.query(expr).spread(function(results, metadata)
-			{
-				if (metadata > 0) {
-					db.close();
-					resolve(subject);
-				}
-				else {
-					db.close();
-					return reject('Insert Failed');
-				}
-			});
-		})
-		.catch(err => reject('Failed to Decrypt Password'));
+		db.query(expr).spread(function(results, metadata)
+		{
+			if (metadata > 0) {
+				db.close();
+				resolve(subject);
+			}
+			else {
+				db.close();
+				return reject('Insert Failed');
+			}
+		});
 	} else {
 		reject('Payload Not Processed');
 	}
