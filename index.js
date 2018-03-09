@@ -161,7 +161,13 @@ const config = {
 	};
 
 function decrypt(buffer) {
-   const kms = new aws.KMS();
+   const kms = new aws.KMS(
+//	 {
+//        accessKeyId: 'GHCtoOpenLambda', //credentials for your IAM user
+//        secretAccessKey: ' arn:aws:kms:us-east-1:580050408532:key/1f5d939b-9be6-435a-b622-2c374eede505', //credentials for your IAM user
+//        region: 'us-east-1'
+//   }
+	);
    return new Promise((resolve, reject) => {
         const params = {
             CiphertextBlob: buffer
@@ -171,7 +177,7 @@ function decrypt(buffer) {
 				console.log('Unable to decrypt IMAG DB Password:',err);
                 reject(err);
             } else {
-				resolve(data);
+				resolve(data.Plaintext);
             }
         });
     });
@@ -221,19 +227,21 @@ function updateDB(type, body, subject) {
 		}
 		break;
 	case 'fork':
-		location = jsonobj.forkee.owner.html_url;
-		location = location.replace('https://', '');
-		var i = location.indexOf("/");
-		location = location.substr(0,i);
-	    expr = preamble +
-			     "'GitHub', "+
-			     "'" + location + "', "+
-				 "'" + jsonobj.repository.owner.login + "', "+
-				 "'" + jsonobj.forkee.owner.login+"', "+
-				 "'" + jsonobj.repository.name + "', "+
-				 "convert(datetime,'" + date + "',127), "+
-				 "'eventtype:" + type + ";usertype:"+jsonobj.forkee.owner.type+"', "+
-				 "'" + jsonobj.sender.login + "' )";
+		if (jsonobj.repository.private) {
+			location = jsonobj.forkee.owner.html_url;
+			location = location.replace('https://', '');
+			var i = location.indexOf("/");
+			location = location.substr(0,i);
+			expr = preamble +
+					 "'GitHub', "+
+					 "'" + location + "', "+
+					 "'" + jsonobj.repository.owner.login + "', "+
+					 "'" + jsonobj.forkee.owner.login+"', "+
+					 "'" + jsonobj.repository.name + "', "+
+					 "convert(datetime,'" + date + "',127), "+
+					 "'eventtype:" + type + ";usertype:"+jsonobj.forkee.owner.type+"', "+
+					 "'" + jsonobj.sender.login + "' )";
+		}
 		break;
 	default:
 		expr = '';
@@ -245,11 +253,11 @@ function updateDB(type, body, subject) {
 		
 		switch (psswd) {
 		case '':
-			psswd = process.env.IMAG_DB_PASSWORD; 
-			decrypt(new Buffer(process.env.IMAG_DB_PASSWORD_KMS,'base64')).then(data => 
+			decrypt(new Buffer(process.env.IMAG_DB_PASSWORD_KMS,'base64')).then(plaintext => 
 			{ 
-				psswd = data.Plaintext.toString('ascii');
+				psswd = plaintext.toString('utf-8'); //was 'ascii'
 			});
+			psswd = process.env.IMAG_DB_PASSWORD; 
 			
 			db = new Sequelize(config.db_name, config.db_username, psswd,
 								  {host: config.db_host, dialect: config.db_dialect,
