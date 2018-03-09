@@ -168,7 +168,7 @@ function decrypt(buffer) {
         };
         kms.decrypt(params, (err, data) => {
             if (err) {
-				console.log(''Unable to decrypt IMAG DB Password:',err);
+				console.log('Unable to decrypt IMAG DB Password:',err);
                 reject(err);
             } else {
 				resolve(data);
