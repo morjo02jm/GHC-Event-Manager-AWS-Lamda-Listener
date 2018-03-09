@@ -149,6 +149,8 @@ var cons = require('console');
 var Sequelize = require('sequelize');
 require('sequelize-isunique-validator')(Sequelize);
 const aws = require('aws-sdk'); 
+var psswd = '';
+var db = null;
 
 const config = {
     db_username: "gm_tools_user",
@@ -159,16 +161,17 @@ const config = {
 	};
 
 function decrypt(buffer) {
-    const kms = new aws.KMS();
-    return new Promise((resolve, reject) => {
+   const kms = new aws.KMS();
+   return new Promise((resolve, reject) => {
         const params = {
-            CiphertextBlob: buffer// The data to encrypt.
+            CiphertextBlob: buffer
         };
         kms.decrypt(params, (err, data) => {
             if (err) {
-                reject('Unable to decrypt IMAG DB Password');
+				console.log(''Unable to decrypt IMAG DB Password:',err);
+                reject(err);
             } else {
-                resolve(data.Plaintext);
+				resolve(data);
             }
         });
     });
@@ -239,25 +242,30 @@ function updateDB(type, body, subject) {
 	if (expr && expr.length > 0) {
 		//console.log('Type: '+type+'  Sender: '+jsonobj.sender.login+'\n'+body);
 		//console.log('Query: '+expr);
-		var psswd = process.env.IMAG_DB_PASSWORD; 
-		decrypt(new Buffer(process.env.IMAG_DB_PASSWORD_KMS,'base64')).then(plaintext => 
-		{ 
-			console.log(plaintext.toString('ascii')); 
-		});
 		
-		var db = new Sequelize(config.db_name, config.db_username, psswd,
-							  {host: config.db_host, dialect: config.db_dialect,
-							   pool: {max: 5, min: 0, acquire: 30000, idle: 10000 },
-										  operatorsAliases: false });
+		switch (psswd) {
+		case '':
+			psswd = process.env.IMAG_DB_PASSWORD; 
+			decrypt(new Buffer(process.env.IMAG_DB_PASSWORD_KMS,'base64')).then(data => 
+			{ 
+				psswd = data.Plaintext.toString('ascii');
+			});
+			
+			db = new Sequelize(config.db_name, config.db_username, psswd,
+								  {host: config.db_host, dialect: config.db_dialect,
+								   pool: {max: 5, min: 0, acquire: 30000, idle: 10000 },
+											  operatorsAliases: false });
+			break;
+		default:
+			break;
+		}
 
 		db.query(expr).spread(function(results, metadata)
 		{
 			if (metadata > 0) {
-				db.close();
 				resolve(subject);
 			}
 			else {
-				db.close();
 				return reject('Insert Failed');
 			}
 		});
@@ -268,7 +276,7 @@ function updateDB(type, body, subject) {
 }; //updateDB
 
 function sendEmail(type, body, subject) {
-	console.log ('mailgun trigged');
+  console.log ('mailgun trigged');
   return new Promise((resolve, reject) => {
 	  var jsonobj = JSON.parse(body);
 	  console.log('Type: '+type+'  Sender: '+jsonobj.sender.login+'\n'+body);
