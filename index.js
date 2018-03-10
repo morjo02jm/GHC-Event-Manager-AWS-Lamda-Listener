@@ -253,10 +253,10 @@ function updateDB(type, body, subject) {
 		
 		switch (psswd) {
 		case '':
-			decrypt(new Buffer(process.env.IMAG_DB_PASSWORD_KMS,'base64')).then(plaintext => 
-			{ 
-				psswd = plaintext.toString('utf-8'); //was 'ascii'
-			});
+			//decrypt(new Buffer(process.env.IMAG_DB_PASSWORD_KMS,'base64')).then(plaintext => 
+			//{ 
+			//	psswd = plaintext.toString('utf-8'); //was 'ascii'
+			//});
 			psswd = process.env.IMAG_DB_PASSWORD; 
 			
 			db = new Sequelize(config.db_name, config.db_username, psswd,
