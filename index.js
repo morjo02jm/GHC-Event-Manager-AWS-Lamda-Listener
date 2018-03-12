@@ -253,30 +253,44 @@ function updateDB(type, body, subject) {
 		
 		switch (psswd) {
 		case '':
-			//decrypt(new Buffer(process.env.IMAG_DB_PASSWORD_KMS,'base64')).then(plaintext => 
-			//{ 
-			//	psswd = plaintext.toString('utf-8'); //was 'ascii'
-			//});
-			psswd = process.env.IMAG_DB_PASSWORD; 
-			
-			db = new Sequelize(config.db_name, config.db_username, psswd,
-								  {host: config.db_host, dialect: config.db_dialect,
-								   pool: {max: 5, min: 0, acquire: 30000, idle: 10000 },
-											  operatorsAliases: false });
+			//psswd = process.env.IMAG_DB_PASSWORD; 
+			const kms = new aws.KMS();
+			const params = {
+				CiphertextBlob: buffer
+			};
+			kms.decrypt(params, (err, data) => {
+				if (err) {
+					reject(err);
+				} else {
+					psswd = data.Plaintext.toString('utf-8');
+					db = new Sequelize(config.db_name, config.db_username, psswd,
+										  {host: config.db_host, dialect: config.db_dialect,
+										   pool: {max: 5, min: 0, acquire: 30000, idle: 10000 },
+													  operatorsAliases: false });
+					db.query(expr).spread(function(results, metadata)
+					{
+						if (metadata > 0) {
+							resolve(subject);
+						}
+						else {
+							return reject('Insert Failed');
+						}
+					});
+				}
+			});			
 			break;
 		default:
+			db.query(expr).spread(function(results, metadata)
+			{
+				if (metadata > 0) {
+					resolve(subject);
+				}
+				else {
+					return reject('Insert Failed');
+				}
+			});
 			break;
 		}
-
-		db.query(expr).spread(function(results, metadata)
-		{
-			if (metadata > 0) {
-				resolve(subject);
-			}
-			else {
-				return reject('Insert Failed');
-			}
-		});
 	} else {
 		reject('Payload Not Processed');
 	}
