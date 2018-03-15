@@ -1,3 +1,7 @@
 node_modules
 .serverless
 *.zip
+/.metadata/
+aws-node-github-webhook-listener/.settings
+RemoteSystemsTempFiles
+Servers
