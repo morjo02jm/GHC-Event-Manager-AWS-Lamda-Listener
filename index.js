@@ -160,28 +160,6 @@ const config = {
 	db_dialect: "mssql"
 	};
 
-function decrypt(buffer) {
-   const kms = new aws.KMS(
-//	 {
-//        accessKeyId: 'GHCtoOpenLambda', //credentials for your IAM user
-//        secretAccessKey: ' arn:aws:kms:us-east-1:580050408532:key/1f5d939b-9be6-435a-b622-2c374eede505', //credentials for your IAM user
-//        region: 'us-east-1'
-//   }
-	);
-   return new Promise((resolve, reject) => {
-        const params = {
-            CiphertextBlob: buffer
-        };
-        kms.decrypt(params, (err, data) => {
-            if (err) {
-				console.log('Unable to decrypt IMAG DB Password:',err);
-                reject(err);
-            } else {
-				resolve(data.Plaintext);
-            }
-        });
-    });
-}	
 
 function updateDB(type, body, subject) {
   return new Promise((resolve, reject) => {
@@ -253,31 +231,49 @@ function updateDB(type, body, subject) {
 		
 		switch (psswd) {
 		case '':
-			//psswd = process.env.IMAG_DB_PASSWORD; 
-			const kms = new aws.KMS();
-			const params = {
-				CiphertextBlob: buffer
-			};
-			kms.decrypt(params, (err, data) => {
-				if (err) {
-					reject(err);
-				} else {
-					psswd = data.Plaintext.toString('utf-8');
-					db = new Sequelize(config.db_name, config.db_username, psswd,
-										  {host: config.db_host, dialect: config.db_dialect,
-										   pool: {max: 5, min: 0, acquire: 30000, idle: 10000 },
-													  operatorsAliases: false });
-					db.query(expr).spread(function(results, metadata)
-					{
-						if (metadata > 0) {
-							resolve(subject);
-						}
-						else {
-							return reject('Insert Failed');
-						}
-					});
+			//const kms = new aws.KMS();
+			//var buffer = new Buffer(process.env.IMAG_DB_PASSWORD_KMS,'base64');
+			//const params = {
+			//	CiphertextBlob: buffer
+			//};
+			//kms.decrypt(params, (err, data) => {
+			//	if (err) {
+			//		console.log('Failed to Decrypt DB Password');
+			//		return reject(err);
+			//	} else {
+			//		psswd = data.Plaintext.toString('utf-8');
+			//		
+			//		db = new Sequelize(config.db_name, config.db_username, psswd,
+			//							  {host: config.db_host, dialect: config.db_dialect,
+			//							   pool: {max: 5, min: 0, acquire: 30000, idle: 10000 },
+			//										  operatorsAliases: false });
+			//										  
+			//		db.query(expr).spread(function(results, metadata)
+			//		{
+			//			if (metadata > 0) {
+			//				resolve(subject);
+			//			}
+			//			else {
+			//				return reject('Insert Failed');
+			//			}
+			//		});
+			//	}
+			//});	
+			psswd = 'Fv$m8&2#Zp9ngu9';
+			db = new Sequelize(config.db_name, config.db_username, psswd,
+								  {host: config.db_host, dialect: config.db_dialect,
+								   pool: {max: 5, min: 0, acquire: 30000, idle: 10000 },
+											  operatorsAliases: false });
+											  
+			db.query(expr).spread(function(results, metadata)
+			{
+				if (metadata > 0) {
+					resolve(subject);
 				}
-			});			
+				else {
+					return reject('Insert Failed');
+				}
+			});
 			break;
 		default:
 			db.query(expr).spread(function(results, metadata)
@@ -292,7 +288,7 @@ function updateDB(type, body, subject) {
 			break;
 		}
 	} else {
-		reject('Payload Not Processed');
+		return reject('Payload Not Processed');
 	}
   })
 }; //updateDB
