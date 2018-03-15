@@ -160,6 +160,10 @@ const config = {
 	db_dialect: "mssql"
 	};
 
+const kms = new aws.KMS();
+const buffer = new Buffer(process.env.IMAG_DB_PASSWORD_KMS,'base64');
+const params = { CiphertextBlob: buffer };
+
 
 function updateDB(type, body, subject) {
   return new Promise((resolve, reject) => {
@@ -231,49 +235,29 @@ function updateDB(type, body, subject) {
 		
 		switch (psswd) {
 		case '':
-			//const kms = new aws.KMS();
-			//var buffer = new Buffer(process.env.IMAG_DB_PASSWORD_KMS,'base64');
-			//const params = {
-			//	CiphertextBlob: buffer
-			//};
-			//kms.decrypt(params, (err, data) => {
-			//	if (err) {
-			//		console.log('Failed to Decrypt DB Password');
-			//		return reject(err);
-			//	} else {
-			//		psswd = data.Plaintext.toString('utf-8');
-			//		
-			//		db = new Sequelize(config.db_name, config.db_username, psswd,
-			//							  {host: config.db_host, dialect: config.db_dialect,
-			//							   pool: {max: 5, min: 0, acquire: 30000, idle: 10000 },
-			//										  operatorsAliases: false });
-			//										  
-			//		db.query(expr).spread(function(results, metadata)
-			//		{
-			//			if (metadata > 0) {
-			//				resolve(subject);
-			//			}
-			//			else {
-			//				return reject('Insert Failed');
-			//			}
-			//		});
-			//	}
-			//});	
-			psswd = 'Fv$m8&2#Zp9ngu9';
-			db = new Sequelize(config.db_name, config.db_username, psswd,
-								  {host: config.db_host, dialect: config.db_dialect,
-								   pool: {max: 5, min: 0, acquire: 30000, idle: 10000 },
-											  operatorsAliases: false });
-											  
-			db.query(expr).spread(function(results, metadata)
-			{
-				if (metadata > 0) {
-					resolve(subject);
+			kms.decrypt(params, (err, data) => {
+				if (err) {
+					console.log('Failed to Decrypt DB Password');
+					return reject(err);
+				} else {
+					psswd = data.Plaintext.toString('utf-8');
+					
+					db = new Sequelize(config.db_name, config.db_username, psswd,
+										  {host: config.db_host, dialect: config.db_dialect,
+										   pool: {max: 5, min: 0, acquire: 30000, idle: 10000 },
+													  operatorsAliases: false });
+													  
+					db.query(expr).spread(function(results, metadata)
+					{
+						if (metadata > 0) {
+							resolve(subject);
+						}
+						else {
+							return reject('Insert Failed');
+						}
+					});
 				}
-				else {
-					return reject('Insert Failed');
-				}
-			});
+			});	
 			break;
 		default:
 			db.query(expr).spread(function(results, metadata)
