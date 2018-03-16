@@ -103,25 +103,25 @@ function handleWebhook(type, webhook)
 function handleUnknownEvent(type, body) {
   //var jsonobj = JSON.parse(body);
   return Promise.reject('Unhandled Event Type: '+type);
-};
+}; //handleUnknownEvent
 
 function handleRepositoryEvent(type, body) {
   var jsonobj = JSON.parse(body);
   const subject = `Github user ${jsonobj.sender.login} created ${jsonobj.repository.full_name}`;
   return processEvent(type, body, subject);
-};
+}; //handleRepository
 
 function handleForkEvent(type, body) {
   var jsonobj = JSON.parse(body);
   const subject = `Github user ${jsonobj.sender.login} forked ${jsonobj.repository.full_name} to ${jsonobj.forkee.full_name}`;
   return processEvent(type, body, subject);
-};
+}; //handleForkEvent
 
 function handlePublicEvent(type, body) {
   var jsonobj = JSON.parse(body);
   const subject = `Github user ${jsonobj.sender.login} made ${jsonobj.repository.full_name} public`;
   return processEvent(type, body, subject);
-};
+}; //handlePublicEvent
 
 function handleOrganizationEvent(type, body) {
   var jsonobj = JSON.parse(body);
@@ -131,7 +131,7 @@ function handleOrganizationEvent(type, body) {
   const action = jsonobj.action === 'member_added' ? 'joined' : 'left'
   const subject = `Github user ${jsonobj.membership.user.login} ${action} ${jsonobj.organization.login}`;
   return processEvent(type, body, subject);
-};
+}; //handleOrganizationEvent
 
 function processEvent(type, body, subject) {
 	switch (process.env['GHC_EMAIL_NOTIFY'])
@@ -142,7 +142,7 @@ function processEvent(type, body, subject) {
 	case "FALSE":
 		return updateDB(type, body, subject); 
 	}
-};
+}; //processEvent
 
 var Mailgun = require('mailgun').Mailgun;
 var cons = require('console');
