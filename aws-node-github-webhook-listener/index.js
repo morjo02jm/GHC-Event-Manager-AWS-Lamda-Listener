@@ -192,11 +192,13 @@ function updateDB(type, body, subject) {
 				 "'" + jsonobj.sender.login + "' )";
 		break;
 	case 'repository':
-		if (jsonobj.action==='created' && !jsonobj.repository.private) {
+		if (jsonobj.action==='privatized' || (jsonobj.action==='created' && !jsonobj.repository.private)) {
 			location = jsonobj.repository.owner.html_url;
 			location = location.replace('https://', '');
 			var i = location.indexOf("/");
 			location = location.substr(0,i);
+			var attr = "public";
+			if (jsonobj.action==='privatized') attr="private";
 			expr = preamble +
 					 "'GitHub', "+
 					 "'" + location + "', "+
@@ -204,7 +206,7 @@ function updateDB(type, body, subject) {
 					 "'" + "', "+
 					 "'" + jsonobj.repository.name + "', "+
 					 "convert(datetime,'" + date + "',127), "+
-					 "'eventtype:" + type + ";repotype:public', "+
+					 "'eventtype:" + type + ";repotype:"+attr+"', "+
 					 "'" + jsonobj.sender.login + "' )";		
 		}
 		break;
