@@ -6,4 +6,4 @@ AWS Lambda coding for github event server
 https://24ytrjsehb.execute-api.us-east-1.amazonaws.com/prod/aws-node-github-webhook-listener
 
 #### Lambda function name ####
-** aws-node-github-webhook-listener **
+**aws-node-github-webhook-listener**
